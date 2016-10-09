@@ -1,6 +1,7 @@
 /*
    Random rhythm generator
 
+   Required hardware and circuit setup:
    Speaker attached to pin 9
 */
 
