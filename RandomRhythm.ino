@@ -3,11 +3,25 @@
 
    Required hardware and circuit setup:
    Speaker attached to pin 9
+   Button attached to pin 12
 */
+
+// Speaker
+const int speaker = 9; //pin
+
+// Button
+// While the button is pressed, the rhythm plays through the speaker
+int buttonPin = 12;          // Pin of button 1
+int buttonState=0;           // State of button 1
+
 
 // Time Signature:
 const int beats = 4;
 const int beatnote = 4;
+
+// Tempo
+const int bpm = 100;
+float beatTime = 60000 / bpm;
 
 // Chance multipliers (in %)
 const int pauseChance = 20;
@@ -18,25 +32,10 @@ const int tripletChance = 15;
 const int singledotChance = 20;
 const int doubledotChance = 5;
 
-//const int threeBeatPulseChance = 40;
 
 // A list with the length (in beats x 1000) of notes
 int noteLen[6];
 
-
-//Speaker
-const int speaker = 9; //pin
-
-// Tempo
-const int bpm = 100;
-float beatTime = 60000 / bpm;
-
-
-
-//---------------
-int buttonPin = 12;          // Pin of button 1
-int buttonState=0;           // State of button 1
-//---------------
 
 //int ledState = 1;
 //int ledPin = 13;
@@ -45,45 +44,26 @@ void setup() {
   Serial.begin(9600);
   randomSeed(analogRead(0));
 
-  
-
   float k = 1000.0;
   for (int i = 0; i < 5; i++) {
     noteLen[i] = (int)(k * beatnote);
 
-    /*
-    // For some reason, it doesn't calculate it correctly (e.g. instead of 250 it stores 248) so I have to correct it with these lines:
-    if (noteLen[i] % 5 != 0) {
-      if (noteLen[i] % 10 > 5) {
-        noteLen[i] = (noteLen[i] / 5) * 5 + 5;
-      } else {
-        noteLen[i] = (noteLen[i] / 5) * 5;
-      }
-    }
-    // End of correction
-    */
-
     k /= 2;
-
-  }
-
-
-    //-------------------------
-    pinMode (buttonPin, INPUT);      // Sets pin 12 as a input for a button, placed between pin 12 and GND  
-    digitalWrite (buttonPin, HIGH);  // Activates the pullup resistor of pin 12
-    //-------------------------
-
-    //pinMode(ledPin, OUTPUT);
-    
-  /* noteLen indexes:
+    /* noteLen indexes:
     0 -> whole note
     1 -> half note
     2 -> quarter note
     3 -> 8th note
     4 -> 16th note
   */
+  }
 
+    pinMode (buttonPin, INPUT);      // Sets pin 12 as a input for the button 
+    digitalWrite (buttonPin, HIGH);  // Activates the pullup resistor of pin 12
+
+    //pinMode(ledPin, OUTPUT);
 }
+
 
 boolean randChance(int chance) {
   int r = random(1, 101);
@@ -95,18 +75,16 @@ boolean randChance(int chance) {
 }
 
 
-
 void loop() {
 
   //vars
   boolean rhythmReady = false; // shows whether we have successfully generated the rhythm
   int Measure[33]; // will hold the notes (their lengths in beatsx1000)
+  
   //int counter = 0;
   //String readNote = "";
-
-
   while (rhythmReady == false) {
-    /*
+    /* UNCOMENT THIS  AND THE 2 LINES ABOVE IF THE NOTES ARE BEING RECEIVED THRU SERIAL
       if (Serial.available() > 0) {
       char data = Serial.read();
       if (data == ' ') {
@@ -124,7 +102,7 @@ void loop() {
       }
 
       delay(10);
-    */
+    AND THEN COMMENT EVERYTHING ELSE IN THIS LOOP*/
     int timeLeft = beats * 1000;
     int noteNum = 0;
 
@@ -135,20 +113,14 @@ void loop() {
       int tripletNotesLeft = 0; //helps with the generation of triplets
 
 
-
       // NEW NOTE
       //---------
-
       //Pause or tone?
       boolean isPause = randChance(pauseChance);
-
-
 
       //What type of note?
       lengthn = noteLen[random(0, 5)];
       if (timeLeft < lengthn) continue;
-
-
 
       //Triplet sequence?
       boolean TripletMode = false;
@@ -170,23 +142,12 @@ void loop() {
         }
         noteNum += 1;
         tripletNotesLeft -= 1;
-        /*
-        if (tripletNotesLeft == 0 && timeLeft % 5 != 0) {
-          if (timeLeft % 10 > 5) {
-            timeLeft = (timeLeft / 5) * 5 + 5;
-          } else {
-            timeLeft = (timeLeft / 5) * 5;
-          }
-        }
-        */
       }
       if (TripletMode) {
-        timeLeft -= 2*lengthn;
+        timeLeft -= 2*lengthn; // clears out the time of all 3 triplets at once
         continue;
       }
       TripletMode = false;
-
-
 
       //Dotted?
       boolean singleDot = randChance(singledotChance);
@@ -207,7 +168,8 @@ void loop() {
       // Finally, adding the note!
       timeLeft -= lengthn;
       if (isPause) {
-        Measure[noteNum] = -lengthn; // if it's a pause, it is stored as a negative number
+        Measure[noteNum] = -lengthn; 
+        // if it's a pause, it is stored as a negative number
       } else {
         Measure[noteNum] = lengthn;
       }
@@ -220,8 +182,8 @@ void loop() {
   }
 
 
-  // Second part of the process:
-
+  // Second part of the process (playing the rhythm):
+  
   while (rhythmReady) {
     Serial.println(' ');
     int sum = 0;
@@ -235,56 +197,40 @@ void loop() {
 
         //digitalWrite(ledPin, ledState%2); // change with each note
         //ledState += 1;
-        
-        //test first
 
         Serial.print(int(Measure[i]));
         sum += abs(Measure[i]);
         Serial.print(' ');
-
-        //delay(abs(Measure[i]) * beatTime / 1000);
-        
+     
         //speaker part
         int note = 0;
         if (i == 0 && Measure[i] > 0) {
+          // only if it's the first note of the measure
           note = 440; //A4
+          
         } else if (Measure[i] > 0) {
-          note = 394; //G4
+          // every other note of the measure
+          note = 394; //G4 
         }
 
         unsigned long int duration = abs(Measure[i]) * beatTime / 1000; //ms
 
-        tone(speaker, note, duration);
 
+        tone(speaker, note, duration);
         delay(duration);
         noTone(speaker);
-
-
-      }
-
-      
+      }  
     }
 
     Serial.print(" = ");
     Serial.println(sum);
 
 
-
-    //-----------------
     while (buttonState==0) { 
-      //Sets the not play in a paused state, until button on pin 12 is pressed
-      //digitalWrite(ledPin, LOW);
-      
-      if (digitalRead(buttonPin)==LOW) { buttonState=1; } //If button on pin 12 is pressed, arduino will play the notes once.
-      
+      //Sets the playback in a paused state until the button is pressed    
+      if (digitalRead(buttonPin)==LOW) { buttonState=1; }
     }
-    buttonState=0;
-    //---------------
-
     
+    buttonState=0;   
   }
-
-
-
-
 }
